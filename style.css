@@ -1,0 +1,118 @@
+:root {
+    --neon-cyan: #00f3ff;
+    --neon-pink: #ff0055;
+    --neon-purple: #bc13fe;
+    --bg-dark: #05050a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+
+body {
+    background: var(--bg-dark);
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+    color: white;
+}
+
+canvas { display: block; cursor: crosshair; }
+
+#ui-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.hud {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.stat-box {
+    background: rgba(0, 0, 0, 0.5);
+    border-left: 4px solid var(--neon-cyan);
+    padding: 10px 20px;
+    backdrop-filter: blur(5px);
+}
+
+.label { font-size: 10px; letter-spacing: 2px; color: var(--neon-cyan); display: block; }
+#score-val { font-size: 28px; font-weight: 800; text-shadow: 0 0 10px var(--neon-cyan); }
+
+#combo-tag {
+    color: var(--neon-pink);
+    font-size: 32px;
+    font-weight: 900;
+    opacity: 0;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 10, 0.85);
+    pointer-events: all;
+    opacity: 0;
+    visibility: hidden;
+    transition: 0.4s;
+}
+
+.overlay.active { opacity: 1; visibility: visible; }
+
+h1 {
+    font-size: 80px;
+    font-style: italic;
+    color: var(--neon-cyan);
+    text-shadow: 3px 3px var(--neon-pink);
+    margin-bottom: 10px;
+}
+
+button {
+    background: transparent;
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 30px;
+    position: relative;
+    overflow: hidden;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: var(--neon-cyan);
+    color: black;
+    box-shadow: 0 0 30px var(--neon-cyan);
+}
+
+#screen-flash {
+    position: fixed;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* Glitch Effect */
+.glitch { position: relative; }
+.glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 2px; text-shadow: -2px 0 red;
+    top: 0; color: white; background: var(--bg-dark);
+    overflow: hidden; clip: rect(0,900px,0,0);
+    animation: noise-anim 2s infinite linear alternate-reverse;
+}
+
+@keyframes noise-anim {
+    0% { clip: rect(10px, 9999px, 50px, 0); }
+    100% { clip: rect(80px, 9999px, 100px, 0); }
+}

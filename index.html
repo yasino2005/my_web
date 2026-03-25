@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON BLADE | Slice Arena</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="ui-container">
+        <div class="hud">
+            <div class="stat-box">
+                <span class="label">SCORE</span>
+                <span id="score-val">0000</span>
+            </div>
+            <div id="combo-tag">COMBO X2</div>
+            <div class="stat-box">
+                <span class="label">LIVES</span>
+                <div id="lives-container"></div>
+            </div>
+        </div>
+
+        <div id="menu" class="overlay active">
+            <h1 class="glitch" data-text="NEON BLADE">NEON BLADE</h1>
+            <p>SLICE THE CORES • AVOID THE BOMBS</p>
+            <button id="start-btn">INITIALIZE</button>
+            <div class="high-score">BEST: <span id="best-val">0</span></div>
+        </div>
+
+        <div id="game-over" class="overlay">
+            <h2 style="color: #ff0055;">SYSTEM CRITICAL</h2>
+            <div class="final-score">SCORE: <span id="final-val">0</span></div>
+            <button id="restart-btn">REBOOT</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="screen-flash"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
