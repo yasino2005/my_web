@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEON DASH | Geometry Pulse</title>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff00de;
+            --bg-dark: #0a0a0f;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 50px rgba(0, 242, 255, 0.2);
+            background: linear-gradient(180deg, #0a0a14 0%, #1a1a2e 100%);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+            pointer-events: none;
+        }
+
+        .score-label { font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            display: none;
+        }
+
+        .flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .instruction {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui-layer">
+        <div class="score-label">DIST: <span id="score">0</span>m</div>
+    </div>
+    <div id="overlay">
+        <h1 style="font-size: 48px; color: var(--neon-pink);">CRASHED</h1>
+        <p>TAP TO RESTART</p>
+    </div>
+    <div class="flash" id="flash-effect"></div>
+    <div class="instruction">Press SPACE or CLICK to Jump</div>
+</div>
+
+<script>
+/**
+ * GEOMETRY DASH CLONE - CORE ENGINE
+ * @author Gemini Front-End Dev
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const flashEl = document.getElementById('flash-effect');
+
+// Configuration
+const CONFIG = {
+    gravity: 0.8,
+    jumpForce: -14,
+    baseSpeed: 7,
+    speedInc: 0.0005,
+    cubeSize: 40,
+    groundY: 0, // Set dynamically
+    colors: {
+        player: '#00f2ff',
+        obstacle: '#ff00de',
+        trail: 'rgba(0, 242, 255, 0.3)'
+    }
+};
+
+let gameActive = true;
+let score = 0;
+let speed = CONFIG.baseSpeed;
+let particles = [];
+let obstacles = [];
+let frame = 0;
+
+// Set Canvas Size
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    CONFIG.groundY = canvas.height * 0.75;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Player {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.x = 150;
+        this.y = CONFIG.groundY - CONFIG.cubeSize;
+        this.vy = 0;
+        this.rotation = 0;
+        this.isGrounded = true;
+    }
+
+    jump() {
+        if (this.isGrounded) {
+            this.vy = CONFIG.jumpForce;
+            this.isGrounded = false;
+            createParticles(this.x, this.y + CONFIG.cubeSize, CONFIG.colors.player);
+        }
+    }
+
+    update() {
+        this.vy += CONFIG.gravity;
+        this.y += this.vy;
+
+        // Ground Collision
+        if (this.y + CONFIG.cubeSize > CONFIG.groundY) {
+            this.y = CONFIG.groundY - CONFIG.cubeSize;
+            this.vy = 0;
+            this.isGrounded = true;
+            // Snap rotation to 90deg increments when landing
+            this.rotation = Math.round(this.rotation / 90) * 90;
+        }
+
+        if (!this.isGrounded) {
+            this.rotation += 5; // Rotate in air
+        }
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x + CONFIG.cubeSize/2, this.y + CONFIG.cubeSize/2);
+        ctx.rotate(this.rotation * Math.PI / 180);
+        
+        // Neon Glow
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = CONFIG.colors.player;
+        
+        ctx.fillStyle = CONFIG.colors.player;
+        ctx.fillRect(-CONFIG.cubeSize/2, -CONFIG.cubeSize/2, CONFIG.cubeSize, CONFIG.cubeSize);
+        
+        // Inner detail
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-CONFIG.cubeSize/3, -CONFIG.cubeSize/3, CONFIG.cubeSize/1.5, CONFIG.cubeSize/1.5);
+        
+        ctx.restore();
+    }
+}
+
+class Obstacle {
+    constructor(x) {
+        this.x = x;
+        this.width = 40;
+        this.height = 50;
+        this.type = Math.random() > 0.5 ? 'spike' : 'block';
+    }
+
+    update() {
+        this.x -= speed;
+    }
+
+    draw() {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = CONFIG.colors.obstacle;
+        ctx.fillStyle = CONFIG.colors.obstacle;
+
+        if (this.type === 'spike') {
+            ctx.beginPath();
+            ctx.moveTo(this.x, CONFIG.groundY);
+            ctx.lineTo(this.x + this.width / 2, CONFIG.groundY - this.height);
+            ctx.lineTo(this.x + this.width, CONFIG.groundY);
+            ctx.fill();
+        } else {
+            ctx.fillRect(this.x, CONFIG.groundY - this.height, this.width, this.height);
+        }
+    }
+}
+
+function createParticles(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0,
+            color
+        });
+    }
+}
+
+const player = new Player();
+
+function spawnObstacle() {
+    const lastObs = obstacles[obstacles.length - 1];
+    const minGap = 300 + (speed * 10);
+    const xPos = lastObs ? lastObs.x + minGap + Math.random() * 400 : canvas.width + 100;
+    obstacles.push(new Obstacle(xPos));
+}
+
+function checkCollision(p, o) {
+    // Simple AABB collision for blocks, tighter for spikes
+    const padding = o.type === 'spike' ? 10 : 2;
+    return (p.x < o.x + o.width - padding &&
+            p.x + CONFIG.cubeSize > o.x + padding &&
+            p.y < CONFIG.groundY &&
+            p.y + CONFIG.cubeSize > CONFIG.groundY - o.height + padding);
+}
+
+function gameOver() {
+    gameActive = false;
+    flashEl.style.opacity = '1';
+    setTimeout(() => flashEl.style.opacity = '0', 100);
+    createParticles(player.x, player.y, CONFIG.colors.player);
+    document.getElementById('overlay').style.display = 'block';
+}
+
+function resetGame() {
+    player.reset();
+    obstacles = [];
+    speed = CONFIG.baseSpeed;
+    score = 0;
+    gameActive = true;
+    document.getElementById('overlay').style.display = 'none';
+}
+
+// Input Handling
+const handleInput = () => {
+    if (!gameActive) resetGame();
+    else player.jump();
+};
+window.addEventListener('keydown', (e) => { if(e.code === 'Space') handleInput(); });
+window.addEventListener('mousedown', handleInput);
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Parallax Background
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    for(let i=0; i<5; i++) {
+        ctx.fillRect(((frame * (i+1) * 0.5) % canvas.width), 100 * i, 200, 200);
+    }
+
+    // Draw Ground
+    ctx.strokeStyle = CONFIG.colors.player;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, CONFIG.groundY);
+    ctx.lineTo(canvas.width, CONFIG.groundY);
+    ctx.stroke();
+
+    if (gameActive) {
+        frame++;
+        speed += CONFIG.speedInc;
+        score += Math.floor(speed / 5);
+        scoreEl.innerText = score;
+
+        player.update();
+        
+        // Obstacle logic
+        if (obstacles.length < 5) spawnObstacle();
+        
+        obstacles.forEach((obs, index) => {
+            obs.update();
+            obs.draw();
+            if (checkCollision(player, obs)) gameOver();
+            if (obs.x < -100) obstacles.splice(index, 1);
+        });
+    }
+
+    player.draw();
+
+    // Particle logic
+    particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.fillRect(p.x, p.y, 4, 4);
+        if (p.life <= 0) particles.splice(i, 1);
+    });
+    ctx.globalAlpha = 1.0;
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>
